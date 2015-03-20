@@ -1,0 +1,108 @@
+# Regression Modeling and Analysis of Earthquakes  
+## Kecheng Xu  
+## March 19, 2015 
+
+## Preliminaries
+
+### Load libraries/data/create new variables
+```{r loadData,results="hide"}
+library(Hmisc)
+
+data=read.csv('../data/all_month.csv',sep=",",header=TRUE)
+dt=data[complete.cases(data),] ## remove the rows containing missing values
+dt=subset(dt,dt$type=='earthquake')
+dt$latCut <- cut2(dt$latitude, g = 5)
+dt$lonCut <- cut2(dt$longitude, g = 5)
+dt$nstCut <- cut2(dt$nst, g = 5)
+dt$log10Depth <- log10(dt$depth-min(dt$depth)+1)
+dt$time=as.character(dt$time)
+day=substr(dt$time,1,10)
+hour=substr(dt$time,12,19)
+new.time=paste(day,hour)
+dt$time=strptime(new.time,format="%Y-%m-%d %H:%M:%S")
+summary(dt)
+```
+------
+
+## Exploratory analysis
+
+### Get minimum and maximum times and date downloaded (Methods/Data Collection)
+```{r}
+summary(dt$time)
+```
+
+### Look at patterns over time (Results paragraph 1)
+```{r}
+plot(dt$time, dt$mag, pch = 19,cex=0.5)
+plot(dt$time, dt$depth, pch = 19,cex=0.5)
+```
+
+There does not appear to be a time trend in either variable. 
+
+
+### Look at distribution of magnitudes (Results paragraph 2)
+```{r}
+mean(dt$mag < 3)
+mean(dt$mag > 3 & dt$mag < 5)
+```
+Most earthquakes are small (< 3) or medium (>3 and < 5)
+
+### Look at distribution of depths (Results paragraph 2)
+
+```{r}
+hist(dt$depth, col = "grey",main="Histgram of the Distribution of Depths",
+     xlab="depth",ylab="frequency")
+hist(dt$log10Depth, col = "grey",main="Histgram of the Distribution of log 10 based Depths",
+     xlab="depth",ylab="frequency")
+```
+
+-------
+
+## Modeling 
+
+### Fit a model with no adjustment (results - paragraph 3)
+
+```{r}
+# Fit model with no adjustment variable
+lm.no.adjust <- lm(dt$mag ~ dt$log10Depth)
+
+# Plot residuals, colored by different variables (latitude, longitude, number of sites observing the quake)
+par(mfrow = c(1, 3))
+plot(dt$log10Depth, lm.no.adjust$residuals, col = dt$latCut, pch = 19)
+plot(dt$log10Depth, lm.no.adjust$residuals, col = dt$lonCut, pch = 19)
+plot(dt$log10Depth, lm.no.adjust$residuals, col = dt$nstCut, pch = 19)
+```
+It appears there are some non-random patterns here.
+
+
+### Now fit a model with factor adjustment for latitude, longitude, and number of sites (results - paragraph 3)
+
+```{r lmFinalChunk, dependson="loadData"}
+lm.final <- lm(dt$mag ~ dt$log10Depth + dt$latCut + dt$lonCut + dt$nst)
+
+par(mfrow = c(1, 3))
+plot(dt$log10Depth, lm.final$residuals, col = dt$latCut, pch = 19)
+plot(dt$log10Depth, lm.final$residuals, col = dt$lonCut, pch = 19)
+plot(dt$log10Depth, lm.final$residuals, col = dt$nstCut, pch = 19)
+```
+
+## Get the estimates and confidence intervals
+
+```{r, dependson="lmFinalChunk"}
+## The estimate from summary
+summary(lm.final)
+
+## The confidence interval from confint
+confint(lm.final)
+```
+
+
+
+
+
+
+
+
+
+
+
